@@ -1,7 +1,30 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 import requests
 from typing import List, Optional
 import time
+from database import get_db, engine
+from sqlalchemy.orm import Session
+from sqlalchemy import text
+from pydantic import BaseModel
+from datetime import datetime
+from auth import hash_password
+from models import User, Base, WeatherLog
+
+Base.metadata.create_all(bind=engine)
+
+class UserCreate(BaseModel):
+    email: str
+    username: str
+    password: str
+
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    username: str
+    created_at: datetime  
+    
+    class Config:
+        from_attributes = True
 
 app = FastAPI(
     title="Hong Kong Weather API",
@@ -61,6 +84,32 @@ def home():
         },
         "source": "Hong Kong Observatory Open Data"
     }
+
+@app.post("/users/register", response_model=UserResponse)
+def register_user(user: UserCreate, db: Session = Depends(get_db)):
+    existing_user = db.query(User).filter(
+        (User.email == user.email) | (User.username == user.username)
+    ).first()
+    
+    if existing_user:
+        raise HTTPException(
+            status_code=400,
+            detail="Email or username already registered"
+        )
+
+    hashed_pw = hash_password(user.password)
+    
+    new_user = User(
+        email=user.email,
+        username=user.username,
+        hashed_password=hashed_pw
+    )
+    
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    return new_user
 
 @app.get("/health")
 def health_check():
@@ -220,3 +269,43 @@ def cache_status():
         "cached_items": len(weather_cache),
         "cached_keys": list(weather_cache.keys()),
         }
+    
+@app.get("/db/users")
+def get_users(db: Session = Depends(get_db)):
+    """Get all users from database"""
+    result = db.execute(text("SELECT * FROM users"))
+    users = result.fetchall()
+    
+    return [
+        {"id": u[0], "name": u[1], "email": u[2]}
+        for u in users
+    ]
+
+@app.get("/db/weather")
+def get_weather_logs(db: Session = Depends(get_db)):
+    """Get weather logs from database"""
+    result = db.execute(text("SELECT * FROM weather_logs ORDER BY recorded_at DESC"))
+    logs = result.fetchall()
+    
+    return [
+        {
+            "location": log[1],
+            "temperature": log[2],
+            "recorded_at": log[3]
+        }
+        for log in logs
+    ]
+
+@app.get("/users", response_model=List[UserResponse])
+def get_all_users(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
+    users = db.query(User).offset(skip).limit(limit).all()
+    return users
+
+@app.get("/users/{user_id}", response_model=UserResponse)
+def get_user_by_id(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return user

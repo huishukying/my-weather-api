@@ -4,13 +4,20 @@ __pycache__/
 *$py.class
 *.so
 .Python
-venv/
 env/
-.env
-.venv
+venv/
+.venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Virtual Environment
+venv/
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # IDE
 .vscode/
@@ -20,4 +27,21 @@ venv.bak/
 
 # OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+
+# Database
+*.db
+*.sqlite3
+
+# PyCharm
+.idea/
+*.iml
 Thumbs.db
