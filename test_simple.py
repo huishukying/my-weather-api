@@ -1,13 +1,10 @@
-# test_simple.py
 from database import SessionLocal
 from sqlalchemy import text
 
 print("Testing database connection...")
 
-# Get a database session
 db = SessionLocal()
 
-# Run a simple SQL query
 result = db.execute(text("SELECT * FROM users"))
 users = result.fetchall()
 
