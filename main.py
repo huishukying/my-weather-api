@@ -32,23 +32,19 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Cache to avoid too many API calls
 weather_cache = {}
 CACHE_DURATION = 300  # 5 minutes in seconds
 
 def get_hko_data(data_type: str = "rhrread") -> dict:
-    """Fetch data from HKO API with caching"""
     
     cache_key = data_type
     current_time = time.time()
-    
-    # Check cache
+
     if cache_key in weather_cache:
         cached_time, cached_data = weather_cache[cache_key]
         if current_time - cached_time < CACHE_DURATION:
             return cached_data
     
-    # Fetch from HKO
     url = "https://data.weather.gov.hk/weatherAPI/opendata/weather.php"
     params = {"dataType": data_type, "lang": "en"}
     
@@ -56,8 +52,7 @@ def get_hko_data(data_type: str = "rhrread") -> dict:
         response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
         data = response.json()
-        
-        # Cache it
+
         weather_cache[cache_key] = (current_time, data)
         
         return data
@@ -66,7 +61,6 @@ def get_hko_data(data_type: str = "rhrread") -> dict:
 
 @app.get("/")
 def home():
-    """API home page with available endpoints"""
     return {
         "name": "Hong Kong Weather API",
         "version": "1.0.0",
@@ -113,9 +107,7 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
 
 @app.get("/health")
 def health_check():
-    """Check API and HKO service status"""
     try:
-        # Test HKO connection
         test_data = get_hko_data("rhrread")
         
         return {
@@ -134,17 +126,14 @@ def health_check():
 
 @app.get("/temperature/current")
 def get_current_temperatures():
-    """Get current temperature readings from all stations"""
     
     data = get_hko_data("rhrread")
     
-    # Extract temperature data
     temp_data = data.get("temperature", {}).get("data", [])
     
     if not temp_data:
         raise HTTPException(status_code=404, detail="Temperature data not available")
     
-    # Calculate average
     temperatures = [item.get("value", 0) for item in temp_data if item.get("value")]
     avg_temp = sum(temperatures) / len(temperatures) if temperatures else None
     
@@ -165,12 +154,10 @@ def get_current_temperatures():
 
 @app.get("/temperature/{station_name}")
 def get_station_temperature(station_name: str):
-    """Get temperature for a specific weather station"""
     
     data = get_hko_data("rhrread")
     temp_data = data.get("temperature", {}).get("data", [])
     
-    # Find station (case-insensitive search)
     station_name_lower = station_name.lower()
     
     for station in temp_data:
@@ -182,7 +169,6 @@ def get_station_temperature(station_name: str):
                 "timestamp": data.get("iconUpdateTime", "")
             }
     
-    # If not found, show available stations
     available_stations = [s.get("place") for s in temp_data]
     raise HTTPException(
         status_code=404,
@@ -225,12 +211,10 @@ def get_rainfall_data():
 
 @app.get("/forecast")
 def get_forecast(days: Optional[int] = None):
-    """Get weather forecast (default: all 9 days)"""
     
     data = get_hko_data("fnd")
     forecast_data = data.get("weatherForecast", [])
     
-    # Limit days if specified
     if days and 1 <= days <= 9:
         forecast_data = forecast_data[:days]
     
@@ -264,7 +248,6 @@ def clear_cache():
 
 @app.get("/cache/status")
 def cache_status():
-    """Get cache statistics"""
     return {
         "cached_items": len(weather_cache),
         "cached_keys": list(weather_cache.keys()),
@@ -283,7 +266,6 @@ def get_users(db: Session = Depends(get_db)):
 
 @app.get("/db/weather")
 def get_weather_logs(db: Session = Depends(get_db)):
-    """Get weather logs from database"""
     result = db.execute(text("SELECT * FROM weather_logs ORDER BY recorded_at DESC"))
     logs = result.fetchall()
     
