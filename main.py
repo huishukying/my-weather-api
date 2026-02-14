@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from datetime import datetime
 from auth import hash_password
 from models import User, Base, WeatherLog
+from fastapi.middleware.cors import CORSMiddleware
 
 Base.metadata.create_all(bind=engine)
 
@@ -32,8 +33,16 @@ app = FastAPI(
     version="1.0.0"
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 weather_cache = {}
-CACHE_DURATION = 300  # 5 minutes in seconds
+CACHE_DURATION = 300  
 
 def get_hko_data(data_type: str = "rhrread") -> dict:
     
