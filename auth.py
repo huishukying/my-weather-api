@@ -9,12 +9,11 @@ def hash_password(password: str) -> str:
         'sha256',
         password.encode('utf-8'),
         salt,
-        100000  # Number of iterations
+        100000 
     )
     return base64.b64encode(salt + key).decode('ascii')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify password"""
     try:
         decoded = base64.b64decode(hashed_password)
         salt = decoded[:32]
